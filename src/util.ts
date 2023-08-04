@@ -42,6 +42,7 @@ export async function forEach<T>(
   record: Record<string, T>,
   run: (v: T, key: string) => void
 ) {
+  // eslint-disable-next-line
   for (const [key, value] of Object.entries(record)) {
     await run(value, key);
   }
