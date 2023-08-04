@@ -30,9 +30,9 @@ export default class SuperJSON {
     this.dedupe = dedupe;
   }
 
-  serialize(object: SuperJSONValue): SuperJSONResult {
+  async serialize(object: SuperJSONValue): Promise<SuperJSONResult> {
     const identities = new Map<any, any[][]>();
-    const output = walker(object, identities, this, this.dedupe);
+    const output = await walker(object, identities, this, this.dedupe);
     const res: SuperJSONResult = {
       json: output.transformedValue,
     };
@@ -57,17 +57,17 @@ export default class SuperJSON {
     return res;
   }
 
-  deserialize<T = unknown>(payload: SuperJSONResult): T {
+  async deserialize<T = unknown>(payload: SuperJSONResult): Promise<T> {
     const { json, meta } = payload;
 
     let result: T = copy(json) as any;
 
     if (meta?.values) {
-      result = applyValueAnnotations(result, meta.values, this);
+      result = await applyValueAnnotations(result, meta.values, this);
     }
 
     if (meta?.referentialEqualities) {
-      result = applyReferentialEqualityAnnotations(
+      result = await applyReferentialEqualityAnnotations(
         result,
         meta.referentialEqualities
       );
@@ -76,12 +76,12 @@ export default class SuperJSON {
     return result;
   }
 
-  stringify(object: SuperJSONValue): string {
-    return JSON.stringify(this.serialize(object));
+  async stringify(object: SuperJSONValue): Promise<string> {
+    return JSON.stringify(await this.serialize(object));
   }
 
-  parse<T = unknown>(string: string): T {
-    return this.deserialize(JSON.parse(string));
+  async parse<T = unknown>(string: string): Promise<T> {
+    return await this.deserialize(JSON.parse(string));
   }
 
   readonly classRegistry = new ClassRegistry();

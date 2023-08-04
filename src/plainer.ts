@@ -24,67 +24,83 @@ type InnerNode<T> = [T, Record<string, Tree<T>>];
 
 export type MinimisedTree<T> = Tree<T> | Record<string, Tree<T>> | undefined;
 
-function traverse<T>(
+async function traverse<T>(
   tree: MinimisedTree<T>,
   walker: (v: T, path: string[]) => void,
   origin: string[] = []
-): void {
+): Promise<void> {
   if (!tree) {
     return;
   }
 
   if (!isArray(tree)) {
-    forEach(tree, (subtree, key) =>
-      traverse(subtree, walker, [...origin, ...parsePath(key)])
+    await forEach(
+      tree,
+      async (subtree, key) =>
+        await traverse(subtree, walker, [...origin, ...parsePath(key)])
     );
     return;
   }
 
   const [nodeValue, children] = tree;
   if (children) {
-    forEach(children, (child, key) => {
-      traverse(child, walker, [...origin, ...parsePath(key)]);
+    await forEach(children, async (child, key) => {
+      await traverse(child, walker, [...origin, ...parsePath(key)]);
     });
   }
 
-  walker(nodeValue, origin);
+  await walker(nodeValue, origin);
 }
 
-export function applyValueAnnotations(
+export async function applyValueAnnotations(
   plain: any,
   annotations: MinimisedTree<TypeAnnotation>,
   superJson: SuperJSON
 ) {
-  traverse(annotations, (type, path) => {
-    plain = setDeep(plain, path, v => untransformValue(v, type, superJson));
+  await traverse(annotations, async (type, path) => {
+    plain = await setDeep(
+      plain,
+      path,
+      async v => await untransformValue(v, type, superJson)
+    );
   });
 
   return plain;
 }
 
-export function applyReferentialEqualityAnnotations(
+export async function applyReferentialEqualityAnnotations(
   plain: any,
   annotations: ReferentialEqualityAnnotations
 ) {
-  function apply(identicalPaths: string[], path: string) {
+  async function apply(identicalPaths: string[], path: string) {
     const object = getDeep(plain, parsePath(path));
 
-    identicalPaths.map(parsePath).forEach(identicalObjectPath => {
-      plain = setDeep(plain, identicalObjectPath, () => object);
-    });
+    const xaPaths = identicalPaths.map(parsePath);
+    for (let i = 0; i < xaPaths.length; i++) {
+      const identicalObjectPath = xaPaths[i];
+      plain = await setDeep(plain, identicalObjectPath, () => object);
+    }
+
+    /* identicalPaths.map(parsePath).forEach(async identicalObjectPath => {
+      plain = await setDeep(plain, identicalObjectPath, () => object);
+    }); */
   }
 
   if (isArray(annotations)) {
     const [root, other] = annotations;
-    root.forEach(identicalPath => {
-      plain = setDeep(plain, parsePath(identicalPath), () => plain);
-    });
+    for (let i = 0; i < root.length; i++) {
+      const identicalPath = root[i];
+      plain = await setDeep(plain, parsePath(identicalPath), () => plain);
+    }
+    /* root.forEach(async identicalPath => {
+      plain = await setDeep(plain, parsePath(identicalPath), () => plain);
+    }); */
 
     if (other) {
-      forEach(other, apply);
+      await forEach(other, apply);
     }
   } else {
-    forEach(annotations, apply);
+    await forEach(annotations, apply);
   }
 
   return plain;
@@ -150,7 +166,7 @@ export function generateReferentialEqualityAnnotations(
   }
 }
 
-export const walker = (
+export const walker = async (
   object: any,
   identities: Map<any, any[][]>,
   superJson: SuperJSON,
@@ -158,7 +174,7 @@ export const walker = (
   path: any[] = [],
   objectsInThisPath: any[] = [],
   seenObjects = new Map<unknown, Result>()
-): Result => {
+): Promise<Result> => {
   const primitive = isPrimitive(object);
 
   if (!primitive) {
@@ -176,7 +192,7 @@ export const walker = (
   }
 
   if (!isDeep(object, superJson)) {
-    const transformed = transformValue(object, superJson);
+    const transformed = await transformValue(object, superJson);
 
     const result: Result = transformed
       ? {
@@ -199,14 +215,14 @@ export const walker = (
     };
   }
 
-  const transformationResult = transformValue(object, superJson);
+  const transformationResult = await transformValue(object, superJson);
   const transformed = transformationResult?.value ?? object;
 
   const transformedValue: any = isArray(transformed) ? [] : {};
   const innerAnnotations: Record<string, Tree<TypeAnnotation>> = {};
 
-  forEach(transformed, (value, index) => {
-    const recursiveResult = walker(
+  await forEach(transformed, async (value, index) => {
+    const recursiveResult = await walker(
       value,
       identities,
       superJson,
@@ -221,7 +237,7 @@ export const walker = (
     if (isArray(recursiveResult.annotations)) {
       innerAnnotations[index] = recursiveResult.annotations;
     } else if (isPlainObject(recursiveResult.annotations)) {
-      forEach(recursiveResult.annotations, (tree, key) => {
+      await forEach(recursiveResult.annotations, (tree, key) => {
         innerAnnotations[escapeKey(index) + '.' + key] = tree;
       });
     }

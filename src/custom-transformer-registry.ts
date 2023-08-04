@@ -4,8 +4,8 @@ import { find } from './util';
 export interface CustomTransfomer<I, O extends JSONValue> {
   name: string;
   isApplicable: (v: any) => v is I;
-  serialize: (v: I) => O;
-  deserialize: (v: O) => I;
+  serialize: (v: I) => O | Promise<O>;
+  deserialize: (v: O) => I | Promise<I>;
 }
 
 export class CustomTransformerRegistry {

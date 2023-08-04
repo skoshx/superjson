@@ -1,9 +1,9 @@
 import SuperJSON from '.';
 import { walker } from './plainer';
 
-test('walker', () => {
+test('walker', async () => {
   expect(
-    walker(
+    await walker(
       {
         a: new Map([[NaN, null]]),
         b: /test/g,

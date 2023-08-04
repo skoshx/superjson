@@ -38,11 +38,13 @@ export function find<T>(
   return undefined;
 }
 
-export function forEach<T>(
+export async function forEach<T>(
   record: Record<string, T>,
   run: (v: T, key: string) => void
 ) {
-  Object.entries(record).forEach(([key, value]) => run(value, key));
+  for (const [key, value] of Object.entries(record)) {
+    await run(value, key);
+  }
 }
 
 export function includes<T>(arr: T[], value: T) {

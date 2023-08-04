@@ -51,15 +51,15 @@ export const getDeep = (object: object, path: (string | number)[]): object => {
   return object;
 };
 
-export const setDeep = (
+export const setDeep = async (
   object: any,
   path: (string | number)[],
-  mapper: (v: any) => any
-): any => {
+  mapper: (v: any) => any | Promise<any>
+): Promise<any> => {
   validatePath(path);
 
   if (path.length === 0) {
-    return mapper(object);
+    return await mapper(object);
   }
 
   let parent = object;
@@ -99,14 +99,14 @@ export const setDeep = (
   const lastKey = path[path.length - 1];
 
   if (isArray(parent)) {
-    parent[+lastKey] = mapper(parent[+lastKey]);
+    parent[+lastKey] = await mapper(parent[+lastKey]);
   } else if (isPlainObject(parent)) {
-    parent[lastKey] = mapper(parent[lastKey]);
+    parent[lastKey] = await mapper(parent[lastKey]);
   }
 
   if (isSet(parent)) {
     const oldValue = getNthKey(parent, +lastKey);
-    const newValue = mapper(oldValue);
+    const newValue = await mapper(oldValue);
     if (oldValue !== newValue) {
       parent.delete(oldValue);
       parent.add(newValue);
@@ -120,7 +120,7 @@ export const setDeep = (
     const type = +lastKey === 0 ? 'key' : 'value';
     switch (type) {
       case 'key': {
-        const newKey = mapper(keyToRow);
+        const newKey = await mapper(keyToRow);
         parent.set(newKey, parent.get(keyToRow));
 
         if (newKey !== keyToRow) {
@@ -130,7 +130,7 @@ export const setDeep = (
       }
 
       case 'value': {
-        parent.set(keyToRow, mapper(parent.get(keyToRow)));
+        parent.set(keyToRow, await mapper(parent.get(keyToRow)));
         break;
       }
     }
